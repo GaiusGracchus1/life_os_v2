@@ -13,10 +13,23 @@ type Tab = 'all' | 'unread';
 export const EmailView: React.FC<EmailViewProps> = ({ emails, analysis, onUpdateStatus }) => {
   const [activeTab, setActiveTab] = useState<Tab>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
+  const normalizedQuery = searchQuery.trim().toLowerCase();
   const filteredEmails = emails.filter(email => {
-    if (activeTab === 'unread') return email.status === MessageStatus.UNREAD;
-    return true;
+    const matchesTab = activeTab === 'unread' ? email.status === MessageStatus.UNREAD : true;
+    if (!matchesTab) return false;
+    if (!normalizedQuery) return true;
+    const searchableText = [
+      email.sender,
+      email.subject,
+      email.snippet,
+      'fullBody' in email ? (email as any).fullBody : '',
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    return searchableText.includes(normalizedQuery);
   });
 
   const activeEmail = emails.find(e => e.id === expandedId);
@@ -88,7 +101,24 @@ export const EmailView: React.FC<EmailViewProps> = ({ emails, analysis, onUpdate
                   type="text" 
                   placeholder="Search mail" 
                   className="bg-transparent border-none outline-none text-[#E3E3E3] placeholder-[#8E918F] text-sm w-full"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape') {
+                      setSearchQuery('');
+                    }
+                  }}
                 />
+                {searchQuery ? (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="ml-2 text-xs text-[#C4C7C5] hover:text-[#E3E3E3] px-2 py-1 rounded-full hover:bg-[#323335]"
+                    aria-label="Clear search"
+                  >
+                    Clear
+                  </button>
+                ) : null}
              </div>
           </div>
           

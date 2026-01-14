@@ -24,6 +24,7 @@ const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isDataLoading, setIsDataLoading] = useState(false);
+  const [dataLoadError, setDataLoadError] = useState<string | null>(null);
 
   // Manage Client ID state to support manual entry
   const [clientId, setClientId] = useState<string>(() => {
@@ -82,6 +83,7 @@ const App: React.FC = () => {
 
   const loadGoogleData = async () => {
     setIsDataLoading(true);
+    setDataLoadError(null);
     try {
       const [fetchedEvents, fetchedEmails] = await Promise.all([
         fetchGoogleEvents(),
@@ -94,6 +96,8 @@ const App: React.FC = () => {
       handleAnalyze(fetchedEvents, fetchedEmails);
     } catch (e) {
       console.error("Failed to load Google data", e);
+      const message = e instanceof Error ? e.message : "Unable to fetch Google data.";
+      setDataLoadError(message);
     } finally {
       setIsDataLoading(false);
     }
@@ -218,6 +222,12 @@ const App: React.FC = () => {
 
         return (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+             {isDataLoading && (
+              <div className="flex items-center gap-3 rounded-2xl border border-[#444746] bg-[#1E1F20] px-4 py-3 text-sm text-[#C4C7C5]">
+                <RefreshCw className="h-4 w-4 animate-spin text-[#A8C7FA]" />
+                <span>Refreshing your summary data…</span>
+              </div>
+             )}
              {/* Stats Row */}
              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <StatCard 
@@ -226,7 +236,7 @@ const App: React.FC = () => {
                   context={eventContext}
                   colorClass="text-[#A8C7FA]"
                   bgClass="bg-[#A8C7FA]"
-                  onClick={() => setActiveSection('schedule')}
+                  onClick={isDataLoading ? undefined : () => setActiveSection('schedule')}
                 />
                 <StatCard 
                   label="Action Needed" 
@@ -234,7 +244,7 @@ const App: React.FC = () => {
                   context={actionContext}
                   colorClass="text-[#FFB4AB]"
                   bgClass="bg-[#FFB4AB]"
-                  onClick={() => setActiveSection('inbox')}
+                  onClick={isDataLoading ? undefined : () => setActiveSection('inbox')}
                 />
                  <StatCard 
                   label="Unread Inbox" 
@@ -242,7 +252,7 @@ const App: React.FC = () => {
                   context={unreadContext}
                   colorClass="text-[#C4EDD4]"
                   bgClass="bg-[#C4EDD4]"
-                  onClick={() => setActiveSection('inbox')}
+                  onClick={isDataLoading ? undefined : () => setActiveSection('inbox')}
                 />
              </div>
 
@@ -250,7 +260,7 @@ const App: React.FC = () => {
             <WorkflowView 
                 analysis={lifeAnalysis} 
                 loading={isAnalyzing} 
-                onAnalyze={() => handleAnalyze()} 
+                onAnalyze={isDataLoading ? () => undefined : () => handleAnalyze()} 
             />
           </div>
         );
@@ -258,18 +268,32 @@ const App: React.FC = () => {
       case 'schedule':
         return (
           <div className="h-[calc(100vh-8rem)] animate-in fade-in duration-300">
-             <CalendarView events={events} />
+             {isDataLoading ? (
+                <div className="h-full rounded-3xl border border-dashed border-[#444746] bg-[#1E1F20] flex flex-col items-center justify-center text-[#C4C7C5] gap-3">
+                  <RefreshCw className="h-5 w-5 animate-spin text-[#A8C7FA]" />
+                  <span className="text-sm">Loading your schedule…</span>
+                </div>
+              ) : (
+                <CalendarView events={events} />
+              )}
           </div>
         );
 
       case 'inbox':
         return (
           <div className="h-[calc(100vh-8rem)] animate-in fade-in duration-300">
-            <EmailView 
-              emails={emails} 
-              analysis={lifeAnalysis?.inboxAnalysis} 
-              onUpdateStatus={handleUpdateEmailStatus}
-            />
+            {isDataLoading ? (
+              <div className="h-full rounded-3xl border border-dashed border-[#444746] bg-[#1E1F20] flex flex-col items-center justify-center text-[#C4C7C5] gap-3">
+                <RefreshCw className="h-5 w-5 animate-spin text-[#A8C7FA]" />
+                <span className="text-sm">Loading your inbox…</span>
+              </div>
+            ) : (
+              <EmailView 
+                emails={emails} 
+                analysis={lifeAnalysis?.inboxAnalysis} 
+                onUpdateStatus={handleUpdateEmailStatus}
+              />
+            )}
           </div>
         );
         
@@ -277,6 +301,8 @@ const App: React.FC = () => {
         return null;
     }
   }
+
+  const isUiDisabled = isDataLoading;
 
   return (
     <div className="min-h-screen text-[#E3E3E3] flex flex-col max-w-7xl mx-auto">
@@ -287,21 +313,24 @@ const App: React.FC = () => {
          <nav className="bg-[#1E1F20] rounded-full p-1 flex items-center">
             <button 
                onClick={() => setActiveSection('summary')}
-               className={`px-6 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${activeSection === 'summary' ? 'bg-[#A8C7FA] text-[#062E6F]' : 'text-[#C4C7C5] hover:text-[#E3E3E3]'}`}
+               disabled={isUiDisabled}
+               className={`px-6 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${activeSection === 'summary' ? 'bg-[#A8C7FA] text-[#062E6F]' : 'text-[#C4C7C5] hover:text-[#E3E3E3]'} ${isUiDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
             >
                <LayoutDashboard className="w-4 h-4" />
                <span className="hidden sm:inline">Summary</span>
             </button>
             <button 
                onClick={() => setActiveSection('schedule')}
-               className={`px-6 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${activeSection === 'schedule' ? 'bg-[#A8C7FA] text-[#062E6F]' : 'text-[#C4C7C5] hover:text-[#E3E3E3]'}`}
+               disabled={isUiDisabled}
+               className={`px-6 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${activeSection === 'schedule' ? 'bg-[#A8C7FA] text-[#062E6F]' : 'text-[#C4C7C5] hover:text-[#E3E3E3]'} ${isUiDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
             >
                <CalendarIcon className="w-4 h-4" />
                <span className="hidden sm:inline">Schedule</span>
             </button>
             <button 
                onClick={() => setActiveSection('inbox')}
-               className={`px-6 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${activeSection === 'inbox' ? 'bg-[#A8C7FA] text-[#062E6F]' : 'text-[#C4C7C5] hover:text-[#E3E3E3]'}`}
+               disabled={isUiDisabled}
+               className={`px-6 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${activeSection === 'inbox' ? 'bg-[#A8C7FA] text-[#062E6F]' : 'text-[#C4C7C5] hover:text-[#E3E3E3]'} ${isUiDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
             >
                <Mail className="w-4 h-4" />
                <span className="hidden sm:inline">Inbox</span>
@@ -312,7 +341,12 @@ const App: React.FC = () => {
             <div className="w-8 h-8 rounded-full bg-[#A8C7FA] flex items-center justify-center text-[#062E6F] font-bold text-xs">
                 {isAuthenticated ? 'JD' : ''}
             </div>
-            <button onClick={handleSignOut} className="p-2 hover:bg-[#2D2E30] rounded-full text-[#C4C7C5] hover:text-[#FFB4AB] transition-colors" title="Sign Out">
+            <button 
+              onClick={handleSignOut}
+              disabled={isUiDisabled}
+              className={`p-2 hover:bg-[#2D2E30] rounded-full text-[#C4C7C5] hover:text-[#FFB4AB] transition-colors ${isUiDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+              title="Sign Out"
+            >
                 <LogOut className="w-4 h-4" />
             </button>
          </div>
@@ -320,6 +354,31 @@ const App: React.FC = () => {
 
       {/* Main Content */}
       <main className="flex-1 px-4 sm:px-6 pb-6 overflow-hidden">
+         {dataLoadError && (
+           <div className="mb-4 flex items-start justify-between gap-4 rounded-2xl border border-[#3C1B1D] bg-[#2A1416] px-4 py-3 text-sm text-[#FFB4AB]">
+             <div>
+               <p className="font-medium text-[#FFDAD6]">Google sync failed</p>
+               <p className="text-xs text-[#FFB4AB]/90">{dataLoadError}</p>
+             </div>
+             <div className="flex items-center gap-2">
+               <button
+                 type="button"
+                 onClick={loadGoogleData}
+                 disabled={isDataLoading}
+                 className={`rounded-full border border-[#FFB4AB] px-3 py-1 text-xs font-medium text-[#FFB4AB] transition-colors ${isDataLoading ? 'opacity-60 cursor-not-allowed' : 'hover:bg-[#3C1B1D]'}`}
+               >
+                 Retry
+               </button>
+               <button
+                 type="button"
+                 onClick={() => setDataLoadError(null)}
+                 className="rounded-full border border-transparent px-3 py-1 text-xs text-[#FFB4AB] hover:bg-[#3C1B1D]/60 transition-colors"
+               >
+                 Dismiss
+               </button>
+             </div>
+           </div>
+         )}
          {renderContent()}
       </main>
     </div>

@@ -1,0 +1,5 @@
+{
+  "name": "LifeOS Dashboard V2",
+  "description": "A comprehensive personal dashboard that aggregates Calendar events and Gmail communications. It uses Gemini AI to analyze your daily data, categorize workflows, and generate actionable summaries for a productive life overview.",
+  "requestFramePermissions": []
+}

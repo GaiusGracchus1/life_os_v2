@@ -2,7 +2,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { CalendarEvent, Email, LifeAnalysis } from "../types";
 
 // Using the provided environment variable for API Key
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
 
 export const analyzeLifeData = async (
   events: CalendarEvent[],
@@ -19,7 +19,7 @@ export const analyzeLifeData = async (
     status: e.status,
     snippet: e.snippet,
     // Limit body context to first 1000 characters to save tokens and reduce request size significantly
-    preview: e.fullBody ? e.fullBody.substring(0, 1000) : '' 
+    preview: e.fullBody ? e.fullBody.substring(0, 1000) : ''
   }));
 
   const simplifiedEvents = events.map(e => ({
